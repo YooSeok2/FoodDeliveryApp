@@ -13,4 +13,8 @@ module.exports = {
       },
     },
   ],
+  rules: {
+    'prettier/prettier': ['error', {endOfLine: 'auto'}],
+    '@typescript-eslint/no-unused-vars': 'warn',
+  },
 };
