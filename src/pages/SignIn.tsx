@@ -50,23 +50,25 @@ function SignIn({navigation}: SignInScreenProps) {
         password,
       });
       console.log(response.data);
-      setLoading(false);
-      await EncryptedStorage.setItem(
-        'refreshToken',
-        response.data.data.refreshToken,
-      );
-      dispatch(
-        userSlice.actions.setUser({
-          name: response.data.data.name,
-          email: response.data.data.email,
-          accessToken: response.data.data.accessToken,
-        }),
-      );
+      if (response.data?.data) {
+        await EncryptedStorage.setItem(
+          'refreshToken',
+          response.data.data.refreshToken,
+        );
+        setLoading(false);
+        dispatch(
+          userSlice.actions.setUser({
+            name: response.data.data.name,
+            email: response.data.data.email,
+            accessToken: response.data.data.accessToken,
+          }),
+        );
+      }
     } catch (error) {
-      const errorResponse = (error as AxiosError).response;
-      console.error(errorResponse ? errorResponse : error);
-      if (errorResponse) {
-        Alert.alert('알림', errorResponse.data.message);
+      if (error instanceof AxiosError && error.response) {
+        Alert.alert('알림', error.response.data.message);
+      } else {
+        console.error(error);
       }
       setLoading(false);
     }

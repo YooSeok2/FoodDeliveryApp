@@ -3,18 +3,20 @@ import SignUp from './src/pages/SignUp';
 import Orders from './src/pages/Orders';
 import Delivery from './src/pages/Delivery';
 import Settings from './src/pages/Settings';
-import React, {useEffect, useState} from 'react';
+import * as React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useSelector} from 'react-redux';
 import {RootState} from './src/store/reducer';
 import useSocket from './src/hooks/useSocket';
-import Config from 'react-native-config';
+import {useEffect} from 'react';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import axios, {AxiosError} from 'axios';
-import {useAppDispatch} from './src/store';
+import {Alert} from 'react-native';
 import userSlice from './src/slices/user';
-import {Alert, Text} from 'react-native';
+import {useAppDispatch} from './src/store';
+import Config from 'react-native-config';
+import orderSlice from './src/slices/order';
 
 export type LoggedInParamList = {
   Orders: undefined;
@@ -32,17 +34,76 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function AppInner() {
-  const [loading, setLoading] = useState(false);
-  const isLoggedIn = useSelector((state: RootState) => !!state.user.email);
   const dispatch = useAppDispatch();
+  const isLoggedIn = useSelector((state: RootState) => !!state.user.email);
   console.log('isLoggedIn', isLoggedIn);
 
   const [socket, disconnect] = useSocket();
 
+  // 앱 실행 시 토큰 있으면 로그인하는 코드
+  useEffect(() => {
+    const getTokenAndRefresh = async () => {
+      try {
+        const token = await EncryptedStorage.getItem('refreshToken');
+        if (!token) {
+          return;
+        }
+        const response = await axios.post(
+          `${Config.API_URL}/refreshToken`,
+          {},
+          {
+            headers: {
+              authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        dispatch(
+          userSlice.actions.setUser({
+            name: response.data.data.name,
+            email: response.data.data.email,
+            accessToken: response.data.data.accessToken,
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+        if (error instanceof AxiosError) {
+          if (error.response?.data.code === 'expired') {
+            Alert.alert('알림', '다시 로그인 해주세요.');
+          }
+        }
+      } finally {
+        // ToDo: 스플래시 화면 없애기
+      }
+    };
+    getTokenAndRefresh();
+  }, [dispatch]);
+
+  useEffect(() => {
+    const callback = (data: any) => {
+      console.log(data);
+      dispatch(orderSlice.actions.addOrder(data));
+    };
+    if (socket && isLoggedIn) {
+      socket.emit('acceptOrder', 'hello');
+      socket.on('order', callback);
+    }
+    return () => {
+      if (socket) {
+        socket.off('order', callback);
+      }
+    };
+  }, [dispatch, isLoggedIn, socket]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      console.log('!isLoggedIn', !isLoggedIn);
+      disconnect();
+    }
+  }, [isLoggedIn, disconnect]);
+
   useEffect(() => {
     axios.interceptors.response.use(
       response => {
-        console.log('interceptor');
         return response;
       },
       async error => {
@@ -50,30 +111,39 @@ function AppInner() {
           config,
           response: {status},
         } = error;
-        console.log('interceptor');
+        if (status === 419) {
+          if (error.response.data.code === 'expired') {
+            const originalRequest = config;
+            const refreshToken = await EncryptedStorage.getItem('refreshToken');
+            // token refresh 요청
+            try {
+              const {data} = await axios.post(
+                `${Config.API_URL}/refreshToken`, // token refresh api
+                {},
+                {headers: {authorization: `Bearer ${refreshToken}`}},
+              );
+              // 새로운 토큰 저장
+              dispatch(userSlice.actions.setAccessToken(data.data.accessToken));
+              originalRequest.headers.authorization = `Bearer ${data.data.accessToken}`;
+              // 419로 요청 실패했던 요청 새로운 토큰으로 재요청
+              return axios(originalRequest);
+            } catch (err) {
+              Alert.alert('알림', '로그아웃 되었습니다.');
+              dispatch(
+                userSlice.actions.setUser({
+                  name: '',
+                  email: '',
+                  accessToken: '',
+                }),
+              );
+              await EncryptedStorage.removeItem('refreshToken');
+            }
+          }
+        }
         return Promise.reject(error);
       },
     );
   }, [dispatch]);
-
-  useEffect(() => {
-    const helloCallback = (data: any) => {};
-    if (socket && isLoggedIn) {
-      socket.emit('login', 'hello');
-      socket.on('hello', helloCallback);
-    }
-    return () => {
-      if (socket) {
-        socket.off('hello', helloCallback);
-      }
-    };
-  }, [isLoggedIn, socket]);
-
-  useEffect(() => {
-    if (!isLoggedIn) {
-      disconnect();
-    }
-  }, [isLoggedIn, disconnect]);
 
   return isLoggedIn ? (
     <Tab.Navigator>

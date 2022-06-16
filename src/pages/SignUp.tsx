@@ -84,9 +84,11 @@ function SignUp({navigation}: SignUpScreenProps) {
       ]);
       console.log(response);
     } catch (error) {
-      const resError = (error as AxiosError).response;
-      console.error(resError ? resError : error);
-      Alert.alert('에러', resError.data.message);
+      if (error instanceof AxiosError && error.response) {
+        Alert.alert('알림', error.response.data.message);
+      } else {
+        console.error(error);
+      }
       setLoading(false);
     }
   }, [email, name, password, loading, navigation]);
