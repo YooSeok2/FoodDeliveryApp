@@ -17,6 +17,7 @@ import userSlice from './src/slices/user';
 import {useAppDispatch} from './src/store';
 import Config from 'react-native-config';
 import orderSlice from './src/slices/order';
+import usePermissions from './src/hooks/usePermissions';
 
 export type LoggedInParamList = {
   Orders: undefined;
@@ -36,9 +37,9 @@ const Stack = createNativeStackNavigator();
 function AppInner() {
   const dispatch = useAppDispatch();
   const isLoggedIn = useSelector((state: RootState) => !!state.user.email);
-  console.log('isLoggedIn', isLoggedIn);
-
   const [socket, disconnect] = useSocket();
+
+  usePermissions();
 
   // 앱 실행 시 토큰 있으면 로그인하는 코드
   useEffect(() => {
@@ -65,11 +66,11 @@ function AppInner() {
           }),
         );
       } catch (error) {
-        console.error(error);
         if (error instanceof AxiosError) {
           if (error.response?.data.code === 'expired') {
             Alert.alert('알림', '다시 로그인 해주세요.');
           }
+          console.error(error.message);
         }
       } finally {
         // ToDo: 스플래시 화면 없애기

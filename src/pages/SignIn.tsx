@@ -72,7 +72,7 @@ function SignIn({navigation}: SignInScreenProps) {
       }
       setLoading(false);
     }
-  }, [loading, dispatch, email, password]);
+  }, [loading, email, password, dispatch]);
 
   const toSignUp = useCallback(() => {
     navigation.navigate('SignUp');

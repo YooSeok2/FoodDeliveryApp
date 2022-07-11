@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback} from 'react';
 import {FlatList, View} from 'react-native';
 import {Order} from '../slices/order';
 import {useSelector} from 'react-redux';
@@ -16,6 +16,7 @@ function Orders() {
       <FlatList
         data={orders}
         keyExtractor={item => item.orderId}
+        showsVerticalScrollIndicator={false}
         renderItem={renderItem}
       />
     </View>

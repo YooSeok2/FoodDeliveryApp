@@ -58,7 +58,7 @@ function Settings() {
       <View style={styles.money}>
         <Text style={styles.moneyText}>
           {name}님의 수익금{' '}
-          <Text style={{fontWeight: 'bold'}}>
+          <Text style={styles.moneyTxt}>
             {money.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
           </Text>
           원
@@ -102,6 +102,9 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: 'white',
     fontSize: 16,
+  },
+  moneyTxt: {
+    fontWeight: 'bold',
   },
 });
 
